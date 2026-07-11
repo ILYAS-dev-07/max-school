@@ -1,0 +1,4 @@
+// Инициализируем клиент Supabase с использованием переменных окружения
+const supabaseUrl = 'https://jzdwyrrrokisxydrfiyy.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6ZHd5cnJyb2tpc3h5ZHJmaXl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MTk0MjcsImV4cCI6MjA5OTE5NTQyN30.Dd3jSuRmbaBXoS4dK8pFrplduxy6skWOqndwd_aImRI';
+export const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
