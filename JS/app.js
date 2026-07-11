@@ -1,137 +1,95 @@
 import { authService } from './services/authService.js';
 import { Header } from './components/Header.js';
 
-// Глобальный объект роутера приложения
-const router = {
-    // Карта маршрутов: хэш -> функция рендеринга страницы
+/**
+ * Игровое SPA-приложение Max School
+ */
+const App = {
+    // Карта статических или динамических роутов приложения
     routes: {
         '#login': async () => {
-            const mainContent = document.getElementById('main-content');
-            mainContent.innerHTML = `
-                <div class="container" style="max-width: 400px; padding-top: var(--spacing-8);">
-                    <div class="card">
-                        <h2 style="margin-bottom: var(--spacing-4); text-align: center;">Max School'a Hoş Geldiniz</h2>
-                        <div id="auth-error" class="hidden" style="color: var(--color-danger); margin-bottom: var(--spacing-3); font-size: 0.9rem;"></div>
-                        <form id="form-auth">
-                            <div style="margin-bottom: var(--spacing-3);">
-                                <label style="display:block; margin-bottom: var(--spacing-1);">Kullanıcı Adı (Kayıt için)</label>
-                                <input type="text" id="auth-username" class="card" style="width:100%; padding: var(--spacing-2);" placeholder="Örn: max_student">
-                            </div>
-                            <div style="margin-bottom: var(--spacing-3);">
-                                <label style="display:block; margin-bottom: var(--spacing-1);">E-posta</label>
-                                <input type="email" id="auth-email" class="card" style="width:100%; padding: var(--spacing-2);" required placeholder="ogrenci@maxschool.com">
-                            </div>
-                            <div style="margin-bottom: var(--spacing-4);">
-                                <label style="display:block; margin-bottom: var(--spacing-1);">Şifre</label>
-                                <input type="password" id="auth-password" class="card" style="width:100%; padding: var(--spacing-2);" required placeholder="******">
-                            </div>
-                            <div style="display:flex; gap: var(--spacing-2);">
-                                <button type="submit" id="btn-login" class="btn btn-primary" style="flex:1;">Giriş Yap</button>
-                                <button type="button" id="btn-register" class="btn btn-secondary" style="flex:1;">Kayıt Ol</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            `;
-            
-            // Обработчики формы авторизации
-            const form = document.getElementById('form-auth');
-            const errorEl = document.getElementById('auth-error');
-            
-            const handleAuth = async (action) => {
-                const email = document.getElementById('auth-email').value;
-                const password = document.getElementById('auth-password').value;
-                const username = document.getElementById('auth-username').value;
-                
-                errorEl.classList.add('hidden');
-                let result;
-                
-                if (action === 'register') {
-                    result = await authService.register(email, password, username);
-                } else {
-                    result = await authService.login(email, password);
-                }
-                
-                if (result.error) {
-                    errorEl.textContent = result.error;
-                    errorEl.classList.remove('hidden');
-                } else {
-                    window.location.hash = '#map'; // Успешно вошли — редирект на карту
-                }
-            };
-
-            document.getElementById('btn-login').addEventListener('click', (e) => { e.preventDefault(); handleAuth('login'); });
-            document.getElementById('btn-register').addEventListener('click', () => handleAuth('register'));
+            const { LoginView } = await import('./components/LoginView.js');
+            LoginView.render('main-content');
         },
-
         '#map': async () => {
             const mainContent = document.getElementById('main-content');
-            mainContent.innerHTML = `
-                <div class="container" style="padding-top: var(--spacing-6);">
-                    <h1>Öğrenme Haritası</h1>
-                    <p style="color: var(--color-text-secondary); margin-bottom: var(--spacing-6);">Derslerini tamamla, ödülleri topla ve seviye atla!</p>
-                    <div id="map-view-container"></div>
-                </div>
-            `;
-            // В следующем шаге мы инициализируем здесь компонент MapView
+            mainContent.innerHTML = `<div id="map-view-container"></div>`;
             const { MapView } = await import('./components/MapView.js');
-            MapView.init('map-view-container');
+            await MapView.init('map-view-container');
         },
-
+        '#lesson': async () => {
+            const mainContent = document.getElementById('main-content');
+            mainContent.innerHTML = `<div id="lesson-view-container"></div>`;
+            const { LessonView } = await import('./components/LessonView.js');
+            await LessonView.init('lesson-view-container');
+        },
         '#profile': async () => {
             const mainContent = document.getElementById('main-content');
             mainContent.innerHTML = `<div id="profile-view-container"></div>`;
-            
-            // Ленивая динамическая загрузка страницы профиля
             const { ProfileView } = await import('./components/ProfileView.js');
             await ProfileView.init('profile-view-container');
         }
     },
 
     /**
-     * Главный диспетчер роутера, проверяющий состояние сессии (Guards)
+     * Инициализация приложения при старте страницы
+     */
+    async init() {
+        // Слушаем изменение хэша в адресной строке для роутинга
+        window.addEventListener('hashchange', () => this.handleRouting());
+        
+        // Запускаем первичный роутинг при загрузке
+        await this.handleRouting();
+    },
+
+    /**
+     * Основной движок маршрутизации с проверкой сессии (Route Guard)
      */
     async handleRouting() {
-        let hash = window.location.hash || '#map';
-        const { data: user } = await authService.getCurrentUser();
+        const hash = window.location.hash || '#map';
+        
+        // 1. Проверяем, авторизован ли пользователь в Supabase
+        const { data: profile } = await authService.getCurrentUser();
+        const isAuthenticated = !!profile;
 
-        // Проверяем авторизацию
-        if (!user && hash !== '#login') {
-            hash = '#login';
+        // 2. Защита роутов (Анти-чит/Безопасность согласно PRD)
+        if (!isAuthenticated && hash !== '#login') {
+            // Если не авторизован и ломится не на логин — принудительно шлем на логин
             window.location.hash = '#login';
-        } else if (user && hash === '#login') {
-            hash = '#map';
-            window.location.hash = '#map';
-        }
-
-        await Header.render();
-
-        // ЛОГИКА ДИНАМИЧЕСКОГО РОУТИНГА ДЛЯ УРОКОВ (Например, #lesson/lesson_math_1)
-        if (hash.startsWith('#lesson/')) {
-            const lessonId = hash.split('/')[1];
-            const mainContent = document.getElementById('main-content');
-            mainContent.innerHTML = `<div id="lesson-view-container"></div>`;
-            
-            const { LessonView } = await import('./components/LessonView.js');
-            await LessonView.init('lesson-view-container', lessonId);
             return;
         }
 
-        // Стандартные статичные маршруты
-        if (this.routes[hash]) {
-            await this.routes[hash]();
+        if (isAuthenticated && hash === '#login') {
+            // Если уже залогинен и пытается открыть страницу входа — перекидываем на карту
+            window.location.hash = '#map';
+            return;
+        }
+
+        // 3. Обновляем глобальную шапку (Header динамически перерендерит XP/Монеты)
+        await Header.render();
+
+        // 4. Очищаем прошлый контент и рендерим новый компонент по хэшу
+        const routeAction = this.routes[hash];
+        if (routeAction) {
+            try {
+                await routeAction();
+            } catch (error) {
+                console.error(`Компонент для роута ${hash} не смог загрузиться:`, error);
+                document.getElementById('main-content').innerHTML = `
+                    <div class="card text-center" style="margin: var(--spacing-6) auto; max-width: 500px;">
+                        <p style="color: var(--color-error); font-weight: 600;">Упс! Произошла ошибка загрузки страницы.</p>
+                        <button class="btn btn-primary" onclick="window.location.reload()">Обновить страницу</button>
+                    </div>
+                `;
+            }
         } else {
+            // Если роут неизвестен — отправляем на карту
             window.location.hash = '#map';
         }
-    },
-
-    init() {
-        // Следим за изменением хэша в URL
-        window.addEventListener('hashchange', () => this.handleRouting());
-        // Проверяем роут при первой загрузке приложения
-        window.addEventListener('DOMContentLoaded', () => this.handleRouting());
     }
 };
 
-// Запуск приложения
-router.init();
+// Запуск приложения сразу после полной загрузки DOM дерева
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+});

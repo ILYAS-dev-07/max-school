@@ -1,3 +1,5 @@
+import { authService } from '../services/authService.js';
+
 export const LoginView = {
     render(containerId) {
         const container = document.getElementById(containerId);
@@ -14,8 +16,8 @@ export const LoginView = {
                     <form id="form-login" class="auth-form">
                         <h2 style="margin-bottom: var(--spacing-4);">Hoş Geldiniz!</h2>
                         <div class="form-group" style="margin-bottom: var(--spacing-3);">
-                            <label>Kullanıcı Adı</label>
-                            <input type="text" id="login-username" placeholder="kullanici_adi" required style="width: 100%; padding: var(--spacing-2); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                            <label>E-posta Adresi</label>
+                            <input type="email" id="login-email" placeholder="ornek@email.com" required style="width: 100%; padding: var(--spacing-2); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
                         </div>
                         <div class="form-group" style="margin-bottom: var(--spacing-4);">
                             <label>Şifre</label>
@@ -31,8 +33,8 @@ export const LoginView = {
                             <input type="email" id="reg-email" placeholder="ornek@email.com" required style="width: 100%; padding: var(--spacing-2); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
                         </div>
                         <div class="form-group" style="margin-bottom: var(--spacing-3);">
-                            <label>Kullanıcı Adı</label>
-                            <input type="text" id="reg-username" placeholder="En az 3 karakter" required style="width: 100%; padding: var(--spacing-2); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                            <label>Adınız ve Soyadınız (Görüntülenen İsim)</label>
+                            <input type="text" id="reg-displayname" placeholder="Örn: İlyas Galip" required style="width: 100%; padding: var(--spacing-2); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
                         </div>
                         <div class="form-group" style="margin-bottom: var(--spacing-4);">
                             <label>Şifre</label>
@@ -78,12 +80,12 @@ export const LoginView = {
             e.preventDefault();
             errorDiv.innerText = '';
             
-            const username = document.getElementById('login-username').value;
+            const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-password').value;
 
-            // Вызываем наш обновленный метод сервиса
-            const { error } = await authService.login(username, pass);
+            const { error } = await authService.login(email, pass);
             if (error) {
+                errorDiv.style.color = 'var(--color-error)';
                 errorDiv.innerText = error;
             } else {
                 window.location.hash = '#map';
@@ -96,16 +98,18 @@ export const LoginView = {
             errorDiv.innerText = '';
 
             const email = document.getElementById('reg-email').value;
-            const username = document.getElementById('reg-username').value;
+            const displayName = document.getElementById('reg-displayname').value;
             const pass = document.getElementById('reg-password').value;
 
-            const { error } = await authService.register(email, pass, username);
+            const { error } = await authService.register(email, pass, displayName);
             if (error) {
+                errorDiv.style.color = 'var(--color-error)';
                 errorDiv.innerText = error;
             } else {
                 errorDiv.style.color = 'var(--color-success)';
-                errorDiv.innerText = "Kayıt başarılı! Giriş yapabilirsiniz.";
-                tabLogin.click(); // Автоматически переводим на вкладку входа
+                // Текст изменен, так как проверка почты включена:
+                errorDiv.innerText = "Kayıt başarılı! Lütfen e-posta adresinizi onaylayın, ardından giriş yapabilirsiniz.";
+                tabLogin.click();
             }
         });
     }
